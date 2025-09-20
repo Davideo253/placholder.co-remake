@@ -2,24 +2,23 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Into MP3 TTS From Images</title>
+  <title>Into WEBM TTS From Images</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #111; color: #eee; padding: 2em; text-align: center; }
     input, button { margin: 1em; padding: 0.5em; font-size: 1em; }
-    canvas, audio { display: none; }
     #preview { max-width: 100%; margin-top: 1em; border: 2px solid #444; }
     #textOut { white-space: pre-wrap; margin-top: 1em; font-family: monospace; background: #222; padding: 1em; border-radius: 6px; }
+    audio { margin-top: 1em; }
   </style>
 </head>
 <body>
-  <h1>🎙️ Into MP3 TTS From Images</h1>
-  <p>Upload an image. It extracts the text and converts it to speech. You can export the result as an MP3.</p>
+  <h1>🎙️ Into WEBM TTS From Images</h1>
   <input type="file" accept="image/*" id="imgInput">
   <div><img id="preview"></div>
   <div id="textOut"></div>
   <button id="speakBtn">🔊 Speak</button>
-  <button id="exportBtn">💾 Export MP3</button>
+  <button id="recordBtn">💾 Record & Export</button>
   <audio id="audioOut" controls></audio>
 
   <script>
@@ -27,7 +26,7 @@
     const preview = document.getElementById('preview');
     const textOut = document.getElementById('textOut');
     const speakBtn = document.getElementById('speakBtn');
-    const exportBtn = document.getElementById('exportBtn');
+    const recordBtn = document.getElementById('recordBtn');
     const audioOut = document.getElementById('audioOut');
 
     let extractedText = '';
@@ -56,7 +55,7 @@
       speechSynthesis.speak(utter);
     });
 
-    exportBtn.addEventListener('click', async () => {
+    recordBtn.addEventListener('click', async () => {
       if (!extractedText) return;
 
       const synth = window.speechSynthesis;
@@ -65,11 +64,9 @@
       utter.rate = 1;
       utter.pitch = 1;
 
-      const audioCtx = new AudioContext();
-      const oscillator = audioCtx.createOscillator(); // dummy source
-      const dest = audioCtx.createMediaStreamDestination();
-      const source = audioCtx.createMediaStreamSource(dest.stream);
-      const recorder = new MediaRecorder(dest.stream);
+      // Use SpeechSynthesisUtterance with SpeechSynthesis + capture via tab audio
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
       const chunks = [];
 
       recorder.ondataavailable = e => chunks.push(e.data);
@@ -84,21 +81,11 @@
         a.click();
       };
 
-      // Connect dummy oscillator to destination to keep stream alive
-      oscillator.connect(dest);
-      oscillator.start();
-
       recorder.start();
-
-      // Speak using system audio (not captured, but keeps stream alive)
       synth.speak(utter);
 
-      // Stop after estimated duration
       const duration = Math.min(10000, extractedText.length * 80);
-      setTimeout(() => {
-        recorder.stop();
-        oscillator.stop();
-      }, duration);
+      setTimeout(() => recorder.stop(), duration);
     });
   </script>
 </body>
