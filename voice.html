@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Into MP3 TTS From Images</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #eee; padding: 2em; text-align: center; }
+    input, button { margin: 1em; padding: 0.5em; font-size: 1em; }
+    canvas, audio { display: none; }
+    #preview { max-width: 100%; margin-top: 1em; border: 2px solid #444; }
+    #textOut { white-space: pre-wrap; margin-top: 1em; font-family: monospace; background: #222; padding: 1em; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Into MP3 TTS From Images</h1>
+  <p>Upload an image. It will extract the text and convert it to speech using BetterSAM voice.</p>
+  <input type="file" accept="image/*" id="imgInput">
+  <div><img id="preview"></div>
+  <div id="textOut"></div>
+  <button id="speakBtn">🔊 Speak</button>
+  <button id="exportBtn">💾 Export MP3</button>
+  <audio id="audioOut" controls></audio>
+
+  <script>
+    const imgInput = document.getElementById('imgInput');
+    const preview = document.getElementById('preview');
+    const textOut = document.getElementById('textOut');
+    const speakBtn = document.getElementById('speakBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const audioOut = document.getElementById('audioOut');
+
+    let extractedText = '';
+
+    imgInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        preview.src = reader.result;
+        preview.style.display = 'block';
+        Tesseract.recognize(reader.result, 'eng').then(({ data: { text } }) => {
+          extractedText = text.trim();
+          textOut.textContent = extractedText || '[No text detected]';
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    speakBtn.addEventListener('click', () => {
+      if (!extractedText) return;
+      const utter = new SpeechSynthesisUtterance(extractedText);
+      utter.voice = speechSynthesis.getVoices().find(v => v.name.includes('Sam') || v.name.includes('Better'));
+      utter.rate = 1;
+      utter.pitch = 1;
+      speechSynthesis.speak(utter);
+    });
+
+    exportBtn.addEventListener('click', () => {
+      if (!extractedText) return;
+      const synth = window.speechSynthesis;
+      const utter = new SpeechSynthesisUtterance(extractedText);
+      utter.voice = synth.getVoices().find(v => v.name.includes('Sam') || v.name.includes('Better'));
+      const audioCtx = new AudioContext();
+      const dest = audioCtx.createMediaStreamDestination();
+      const recorder = new MediaRecorder(dest.stream);
+      const chunks = [];
+
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+        audioOut.src = url;
+        audioOut.style.display = 'block';
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tts.mp3';
+        a.click();
+      };
+
+      const source = audioCtx.createMediaStreamSource(dest.stream);
+      synth.speak(utter);
+      recorder.start();
+      setTimeout(() => recorder.stop(), Math.min(10000, extractedText.length * 80));
+    });
+  </script>
+</body>
+</html>
