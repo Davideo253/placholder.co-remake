@@ -14,7 +14,7 @@
 </head>
 <body>
   <h1>🎙️ Into MP3 TTS From Images</h1>
-  <p>Upload an image. It will extract the text and convert it to speech using BetterSAM voice.</p>
+  <p>Upload an image. It extracts the text and converts it to speech. You can export the result as an MP3.</p>
   <input type="file" accept="image/*" id="imgInput">
   <div><img id="preview"></div>
   <div id="textOut"></div>
@@ -50,38 +50,55 @@
     speakBtn.addEventListener('click', () => {
       if (!extractedText) return;
       const utter = new SpeechSynthesisUtterance(extractedText);
-      utter.voice = speechSynthesis.getVoices().find(v => v.name.includes('Sam') || v.name.includes('Better'));
+      utter.voice = speechSynthesis.getVoices().find(v => v.name.includes('Sam')) || null;
       utter.rate = 1;
       utter.pitch = 1;
       speechSynthesis.speak(utter);
     });
 
-    exportBtn.addEventListener('click', () => {
+    exportBtn.addEventListener('click', async () => {
       if (!extractedText) return;
+
       const synth = window.speechSynthesis;
       const utter = new SpeechSynthesisUtterance(extractedText);
-      utter.voice = synth.getVoices().find(v => v.name.includes('Sam') || v.name.includes('Better'));
+      utter.voice = synth.getVoices().find(v => v.name.includes('Sam')) || null;
+      utter.rate = 1;
+      utter.pitch = 1;
+
       const audioCtx = new AudioContext();
+      const oscillator = audioCtx.createOscillator(); // dummy source
       const dest = audioCtx.createMediaStreamDestination();
+      const source = audioCtx.createMediaStreamSource(dest.stream);
       const recorder = new MediaRecorder(dest.stream);
       const chunks = [];
 
       recorder.ondataavailable = e => chunks.push(e.data);
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/mp3' });
+        const blob = new Blob(chunks, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
         audioOut.src = url;
         audioOut.style.display = 'block';
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'tts.mp3';
+        a.download = 'tts.webm';
         a.click();
       };
 
-      const source = audioCtx.createMediaStreamSource(dest.stream);
-      synth.speak(utter);
+      // Connect dummy oscillator to destination to keep stream alive
+      oscillator.connect(dest);
+      oscillator.start();
+
       recorder.start();
-      setTimeout(() => recorder.stop(), Math.min(10000, extractedText.length * 80));
+
+      // Speak using system audio (not captured, but keeps stream alive)
+      synth.speak(utter);
+
+      // Stop after estimated duration
+      const duration = Math.min(10000, extractedText.length * 80);
+      setTimeout(() => {
+        recorder.stop();
+        oscillator.stop();
+      }, duration);
     });
   </script>
 </body>
