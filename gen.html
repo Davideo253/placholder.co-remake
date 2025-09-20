@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PNG Placeholder Generator</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 2em; background: #f0f0f0; }
+    h1 { margin-top: 0; }
+    canvas { display: none; }
+    img { border: 1px solid #ccc; margin-top: 1em; }
+    code { background: #eee; padding: 0.2em 0.4em; border-radius: 4px; }
+    .tags { margin-top: 1em; font-size: 0.9em; color: #444; }
+  </style>
+</head>
+<body>
+  <h1>🖼 PNG Placeholder Generator</h1>
+  <p>This tool generates a PNG image based on the tags in the URL. Just rename the file to anything you want (like <code>profile.png</code>) and add tags after it using <code>?</code> separators.</p>
+  <p><strong>Example:</strong> <code>profile.png?300x200?text=Hello?bg=ff0000?color=ffffff</code></p>
+  <ul>
+    <li><code>300x200</code> → width and height</li>
+    <li><code>text=Hello</code> → custom text</li>
+    <li><code>bg=ff0000</code> → background color</li>
+    <li><code>color=ffffff</code> → text color</li>
+    <li><code>font=Courier</code> → font family</li>
+  </ul>
+
+  <div class="tags">
+    <strong>Parsed Tags:</strong>
+    <div id="tagList"></div>
+  </div>
+
+  <script>
+    const parts = location.search.slice(1).split('?');
+    const size = parts[0] || '300x200';
+    const params = Object.fromEntries(parts.slice(1).map(p => {
+      const [k, v] = p.split('=');
+      return [k, decodeURIComponent(v)];
+    }));
+
+    const [w, h] = size.split('x').map(Number);
+    const text = params.text || `${w}×${h}`;
+    const bg = '#' + (params.bg || 'cccccc');
+    const color = '#' + (params.color || '000000');
+    const font = params.font || 'Arial';
+
+    // Show parsed tags
+    const tagList = document.getElementById('tagList');
+    tagList.innerHTML = `<code>${size}</code>` + Object.entries(params).map(([k,v]) =>
+      ` <code>${k}=${v}</code>`).join('');
+
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = color;
+    ctx.font = `${Math.floor(h / 4)}px ${font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, w / 2, h / 2);
+
+    const img = new Image();
+    img.src = canvas.toDataURL('image/png');
+    document.body.appendChild(img);
+  </script>
+</body>
+</html>
